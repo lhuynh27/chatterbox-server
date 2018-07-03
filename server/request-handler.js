@@ -12,7 +12,12 @@ this file and include it in basic-server.js so that it actually works.
 
 **************************************************************/
 var data = {
-  results: []  
+  results: [ 
+  ]  
+};
+
+var getPathFromUrl = function(url) {
+  return url.split('?')[0];
 };
 
 var requestHandler = function(request, response) {
@@ -53,42 +58,34 @@ var requestHandler = function(request, response) {
   };
 
   var headers = defaultCorsHeaders;
-  // Tell the client we are sending them plain text.
-  //
-  // You will need to change this if you are sending something
-  // other than plain text, like JSON or HTML.
-  headers['Content-Type'] = 'application/JSON';
+  headers['Content-Type'] = 'application/json';
 
-  // .writeHead() writes to the request line and headers of the response,
-  // which includes the status and all headers.
-  if (request.method === 'GET') {
-    if (request.url === '/classes/messages') {
-      response.writeHead(200, headers);
-      response.end(JSON.stringify(data)); //CHANGE LATER
-    } else {
-      response.writeHead(404, headers);
-      response.end('<!doctype html><html><head><title>404</title></head><body>404: Resource Not Found</body></html>');
-    }
-  } else if (request.method === 'POST') {
-    //console.log(request['_postData'].username);
-    if (request.url === '/classes/messages') {
-      if (request.json !== undefined) {
-        data.results.push(request.json);
-      }
-      if (request['_postData'] !== undefined) {
-        data['results'].push(request['_postData']);
-      }
-      response.writeHead(201, headers);
-      response.end('hello we posted');
-    } else {
-      response.writeHead(404, headers);
-      response.end('<!doctype html><html><head><title>404</title></head><body>404: Resource Not Found</body></html>');
-    }
-  } else if (request.method === 'OPTIONS') {
-    if (request.url === '/classes/messages') {
-      response.writeHead(200, headers);
-      response.end(headers);
-    }
+  if (request.method === 'GET' && request.url.includes('/classes/messages')) {
+    statusCode = 200;
+    response.writeHead(statusCode, headers);
+    response.end(JSON.stringify(data)); 
+  } else if (request.method === 'POST' && getPathFromUrl(request.url) === '/classes/messages') {
+    statusCode = 201;
+    let body = '';
+    request.on('data', (chunk) => {
+      body += chunk;
+    });
+    request.on('end', () => {
+      data.results.push(JSON.parse(body));
+      response.writeHead(statusCode, headers);
+      response.end(JSON.stringify(data));
+      console.log('body', body);
+      console.log('data', data);
+    });
+
+  } else if (request.method === 'OPTIONS' && getPathFromUrl(request.url) === '/classes/messages') {
+    statusCode = 200;
+    response.writeHead(statusCode, headers);
+    response.end(JSON.stringify(data));
+  } else {
+    statusCode = 404;
+    response.writeHead(statusCode, headers);
+    response.end(JSON.stringify(data));
   }
 
   // Make sure to always call response.end() - Node may not send
